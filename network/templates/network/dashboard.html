@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Route Optimization</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
+        h1 { text-align: center; padding: 24px; font-size: 1.6rem; color: #38bdf8; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 1100px; margin: 0 auto; padding: 0 20px 40px; }
+        .card { background: #1e293b; border-radius: 12px; padding: 20px; border: 1px solid #334155; }
+        .card h2 { font-size: 1rem; color: #94a3b8; margin-bottom: 4px; }
+        .card .method { font-size: 0.75rem; font-weight: 700; padding: 2px 8px; border-radius: 4px; display: inline-block; margin-bottom: 12px; }
+        .method.post { background: #166534; color: #4ade80; }
+        .method.get { background: #1e3a5f; color: #38bdf8; }
+        .method.delete { background: #7f1d1d; color: #fca5a5; }
+        label { display: block; font-size: 0.8rem; color: #94a3b8; margin-top: 10px; }
+        input { width: 100%; padding: 8px 10px; margin-top: 4px; border-radius: 6px; border: 1px solid #475569; background: #0f172a; color: #e2e8f0; font-size: 0.85rem; }
+        input:focus { outline: none; border-color: #38bdf8; }
+        .row { display: flex; gap: 10px; }
+        .row > div { flex: 1; }
+        button { margin-top: 14px; width: 100%; padding: 9px; border: none; border-radius: 6px; font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: opacity 0.2s; }
+        button:hover { opacity: 0.85; }
+        .btn-green { background: #22c55e; color: #052e16; }
+        .btn-blue { background: #38bdf8; color: #0c4a6e; }
+        .btn-red { background: #ef4444; color: #fff; }
+        .response-box { margin-top: 12px; background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 12px; font-family: 'Courier New', monospace; font-size: 0.78rem; max-height: 220px; overflow-y: auto; white-space: pre-wrap; word-break: break-word; color: #a5f3fc; display: none; }
+        .response-box.visible { display: block; }
+        .status { font-size: 0.75rem; margin-top: 6px; font-weight: 600; }
+        .status.ok { color: #4ade80; }
+        .status.err { color: #f87171; }
+        .full-width { grid-column: 1 / -1; }
+        .filters { display: flex; gap: 10px; flex-wrap: wrap; }
+        .filters > div { flex: 1; min-width: 120px; }
+    </style>
+</head>
+<body>
+    <h1>Network Route Optimization Dashboard</h1>
+    <div class="grid">
+
+        <!-- Add Node -->
+        <div class="card">
+            <h2>Add Node</h2>
+            <span class="method post">POST</span> <code>/nodes</code>
+            <label>Node Name
+                <input type="text" id="node-name" placeholder="e.g. ServerA">
+            </label>
+            <button class="btn-green" onclick="addNode()">Add Node</button>
+            <div class="status" id="node-status"></div>
+            <div class="response-box" id="node-response"></div>
+        </div>
+
+        <!-- List Nodes -->
+        <div class="card">
+            <h2>List Nodes</h2>
+            <span class="method get">GET</span> <code>/nodes</code>
+            <button class="btn-blue" onclick="listNodes()" style="margin-top:28px;">Fetch Nodes</button>
+            <div class="status" id="list-nodes-status"></div>
+            <div class="response-box" id="list-nodes-response"></div>
+        </div>
+
+        <!-- Add Edge -->
+        <div class="card">
+            <h2>Add Edge</h2>
+            <span class="method post">POST</span> <code>/edges</code>
+            <div class="row">
+                <div>
+                    <label>Source<input type="text" id="edge-source" placeholder="ServerA"></label>
+                </div>
+                <div>
+                    <label>Destination<input type="text" id="edge-dest" placeholder="ServerB"></label>
+                </div>
+            </div>
+            <label>Latency<input type="number" id="edge-latency" placeholder="12.5" step="0.1" min="0.1"></label>
+            <button class="btn-green" onclick="addEdge()">Add Edge</button>
+            <div class="status" id="edge-status"></div>
+            <div class="response-box" id="edge-response"></div>
+        </div>
+
+        <!-- List Edges -->
+        <div class="card">
+            <h2>List Edges</h2>
+            <span class="method get">GET</span> <code>/edges</code>
+            <button class="btn-blue" onclick="listEdges()" style="margin-top:28px;">Fetch Edges</button>
+            <div class="status" id="list-edges-status"></div>
+            <div class="response-box" id="list-edges-response"></div>
+        </div>
+
+        <!-- Shortest Route -->
+        <div class="card">
+            <h2>Shortest Route</h2>
+            <span class="method post">POST</span> <code>/routes/shortest</code>
+            <div class="row">
+                <div>
+                    <label>Source<input type="text" id="route-source" placeholder="ServerA"></label>
+                </div>
+                <div>
+                    <label>Destination<input type="text" id="route-dest" placeholder="ServerD"></label>
+                </div>
+            </div>
+            <button class="btn-green" onclick="findRoute()">Find Shortest Route</button>
+            <div class="status" id="route-status"></div>
+            <div class="response-box" id="route-response"></div>
+        </div>
+
+        <!-- Delete Node / Edge -->
+        <div class="card">
+            <h2>Delete Node / Edge</h2>
+            <span class="method delete">DELETE</span>
+            <div class="row">
+                <div>
+                    <label>Node ID<input type="number" id="del-node-id" placeholder="1" min="1"></label>
+                    <button class="btn-red" onclick="deleteNode()">Delete Node</button>
+                </div>
+                <div>
+                    <label>Edge ID<input type="number" id="del-edge-id" placeholder="1" min="1"></label>
+                    <button class="btn-red" onclick="deleteEdge()">Delete Edge</button>
+                </div>
+            </div>
+            <div class="status" id="delete-status"></div>
+            <div class="response-box" id="delete-response"></div>
+        </div>
+
+        <!-- Route History -->
+        <div class="card full-width">
+            <h2>Route Query History</h2>
+            <span class="method get">GET</span> <code>/routes/history</code>
+            <div class="filters">
+                <div><label>Source<input type="text" id="hist-source" placeholder="(optional)"></label></div>
+                <div><label>Destination<input type="text" id="hist-dest" placeholder="(optional)"></label></div>
+                <div><label>Limit<input type="number" id="hist-limit" placeholder="10" min="1"></label></div>
+                <div><label>Date From<input type="date" id="hist-from"></label></div>
+                <div><label>Date To<input type="date" id="hist-to"></label></div>
+            </div>
+            <button class="btn-blue" onclick="getHistory()">Fetch History</button>
+            <div class="status" id="history-status"></div>
+            <div class="response-box" id="history-response"></div>
+        </div>
+    </div>
+
+<script>
+    const CSRF = '{{ csrf_token }}';
+    const headers = {'Content-Type': 'application/json', 'X-CSRFToken': CSRF};
+
+    function show(id, data, ok) {
+        const box = document.getElementById(id + '-response');
+        const stat = document.getElementById(id + '-status');
+        box.textContent = JSON.stringify(data, null, 2);
+        box.classList.add('visible');
+        stat.textContent = ok ? 'Success' : 'Error';
+        stat.className = 'status ' + (ok ? 'ok' : 'err');
+    }
+
+    async function addNode() {
+        const name = document.getElementById('node-name').value.trim();
+        if (!name) return alert('Enter a node name');
+        const res = await fetch('/nodes', {method: 'POST', headers, body: JSON.stringify({name})});
+        show('node', await res.json(), res.ok);
+        if (res.ok) document.getElementById('node-name').value = '';
+    }
+
+    async function listNodes() {
+        const res = await fetch('/nodes');
+        show('list-nodes', await res.json(), res.ok);
+    }
+
+    async function addEdge() {
+        const source = document.getElementById('edge-source').value.trim();
+        const destination = document.getElementById('edge-dest').value.trim();
+        const latency = parseFloat(document.getElementById('edge-latency').value);
+        if (!source || !destination) return alert('Enter source and destination');
+        if (!latency || latency <= 0) return alert('Latency must be > 0');
+        const res = await fetch('/edges', {method: 'POST', headers, body: JSON.stringify({source, destination, latency})});
+        show('edge', await res.json(), res.ok);
+    }
+
+    async function listEdges() {
+        const res = await fetch('/edges');
+        show('list-edges', await res.json(), res.ok);
+    }
+
+    async function findRoute() {
+        const source = document.getElementById('route-source').value.trim();
+        const destination = document.getElementById('route-dest').value.trim();
+        if (!source || !destination) return alert('Enter source and destination');
+        const res = await fetch('/routes/shortest', {method: 'POST', headers, body: JSON.stringify({source, destination})});
+        show('route', await res.json(), res.ok);
+    }
+
+    async function deleteNode() {
+        const id = document.getElementById('del-node-id').value;
+        if (!id) return alert('Enter a node ID');
+        const res = await fetch('/nodes/' + id, {method: 'DELETE', headers});
+        if (res.status === 204) { show('delete', {message: 'Node deleted successfully'}, true); }
+        else { show('delete', await res.json(), false); }
+    }
+
+    async function deleteEdge() {
+        const id = document.getElementById('del-edge-id').value;
+        if (!id) return alert('Enter an edge ID');
+        const res = await fetch('/edges/' + id, {method: 'DELETE', headers});
+        if (res.status === 204) { show('delete', {message: 'Edge deleted successfully'}, true); }
+        else { show('delete', await res.json(), false); }
+    }
+
+    async function getHistory() {
+        const params = new URLSearchParams();
+        const s = document.getElementById('hist-source').value.trim();
+        const d = document.getElementById('hist-dest').value.trim();
+        const l = document.getElementById('hist-limit').value;
+        const df = document.getElementById('hist-from').value;
+        const dt = document.getElementById('hist-to').value;
+        if (s) params.set('source', s);
+        if (d) params.set('destination', d);
+        if (l) params.set('limit', l);
+        if (df) params.set('date_from', df);
+        if (dt) params.set('date_to', dt);
+        const qs = params.toString() ? '?' + params.toString() : '';
+        const res = await fetch('/routes/history' + qs);
+        show('history', await res.json(), res.ok);
+    }
+</script>
+</body>
+</html>
